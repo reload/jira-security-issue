@@ -1,0 +1,32 @@
+{
+    "name": "reload/jira-security-issue",
+    "description": "Create Jira issues if it doesn't exist",
+    "license": "MIT",
+    "require": {
+        "php": ">=7.2.0",
+        "lesstif/php-jira-rest-client": "^1.42"
+    },
+    "autoload": {
+        "psr-4": {
+            "Reload\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Reload\\": "tests/"
+        }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/appocular/coding-standard"
+        }
+    ],
+    "require-dev": {
+        "appocular/coding-standard": "^1.0",
+        "phpstan/phpstan": "^0.12.4",
+        "phpunit/phpunit": "^8.5",
+        "sempro/phpunit-pretty-print": "^1.2",
+        "symfony/console": "^5.0"
+    }
+}
