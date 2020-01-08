@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Reload;
 
 use JiraRestApi\Configuration\ArrayConfiguration;
+use JiraRestApi\Issue\Comment;
 use JiraRestApi\Issue\IssueField;
 use JiraRestApi\Issue\IssueService;
+use JiraRestApi\Issue\Visibility;
 use JiraRestApi\JiraException;
 use JiraRestApi\User\UserService;
 use RuntimeException;
@@ -14,6 +16,9 @@ use Throwable;
 
 class JiraSecurityIssue
 {
+    public const WATCHERS_TEXT = "This issue is being followed by %s";
+    public const NO_WATCHERS_TEXT = "No watchers on this issue, remember to notify relevant people.";
+
     /**
      * Service used for interacting with Jira issues.
      *
@@ -172,21 +177,30 @@ class JiraSecurityIssue
             throw new RuntimeException("Could not create issue: {$t->getMessage()}");
         }
 
+        $followers = [];
         $watchers = \getenv('JIRA_WATCHERS');
 
         if ($watchers) {
             $watchers = \explode(',', $watchers);
 
             foreach ($watchers as $watcher) {
-                $accountId = $this->accountIdByEmail($watcher);
+                $accountId = $this->userNameByEmail($watcher);
 
                 if (!$accountId) {
                     continue;
                 }
 
                 $this->issueService->addWatcher($ret->key, $accountId);
+                $followers[] = $accountId;
             }
+
         }
+
+        $comment = $followers ?
+            $this->createComment(sprintf(self::WATCHERS_TEXT, $this->formatFollowers($followers))) :
+            $this->createComment(self::NO_WATCHERS_TEXT);
+
+        $this->issueService->addComment($ret->key, $comment);
 
         return $ret->key;
     }
@@ -221,7 +235,7 @@ class JiraSecurityIssue
         return null;
     }
 
-    public function accountIdByEmail(string $email): ?string
+    public function userNameByEmail(string $email): ?string
     {
         try {
             $paramArray = [
@@ -240,7 +254,33 @@ class JiraSecurityIssue
         }
 
         $user = \array_pop($users);
+        print_r($user);
 
-        return $user->accountId;
+        return $user->name;
+    }
+
+    public function createComment(string $text): Comment
+    {
+        $comment = new Comment();
+        $comment->setBody($text);
+
+        $visibility = new Visibility();
+        $visibility->setType('role');
+        $visibility->setValue('Developers');
+
+        $comment->visibility = $visibility;
+
+        return $comment;
+    }
+
+    public function formatFollowers(array $followers): string
+    {
+        $followers = array_map(function ($follower) {
+            return '[~' . $follower. ']';
+        }, $followers);
+
+        $last = array_pop($followers);
+
+        return $followers ? implode(', ', $followers) . ' and ' . $last : $last;
     }
 }

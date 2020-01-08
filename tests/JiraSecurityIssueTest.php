@@ -18,6 +18,7 @@ class JiraSecurityIssueTest extends TestCase
         \putenv('JIRA_TOKEN=pass');
         \putenv('JIRA_PROJECT=ABC');
         \putenv('JIRA_ISSUETYPE=Mytype');
+        \putenv('JIRA_WATCHERS=');
 
         $this->issueService = $this->prophesize(IssueService::class);
         $this->userService = $this->prophesize(UserService::class);
@@ -37,16 +38,23 @@ class JiraSecurityIssueTest extends TestCase
 
     public function testCreatingIssueBasic(): void
     {
+        $issue = $this->newIssue();
+
         // We're passing this var as a reference to the closure, so it can
         // pass back the object it received, so we can test it.
         $issueField = null;
-        $this->issueService->create(Argument::any())->will(function ($args) use (&$issueField) {
-            $issueField = $args[0];
+        $this->issueService
+            ->create(Argument::any())
+            ->will(function ($args) use (&$issueField) {
+                $issueField = $args[0];
 
-            return (object) ['key' => 'ABC-12'];
-        });
+                return (object) ['key' => 'ABC-12'];
+            });
 
-        $issue = $this->newIssue();
+        $this->issueService
+            ->addComment(Argument::any(), Argument::any())
+            ->willReturn(null);
+
         $issue
             ->setTitle('The title')
             ->setBody('Lala')
@@ -60,11 +68,14 @@ class JiraSecurityIssueTest extends TestCase
 
     public function testMissingField(): void
     {
-        $this->issueService->create()->shouldNotBeCalled();
+        $issue = $this->newIssue();
+
+        $this->issueService
+            ->create()
+            ->shouldNotBeCalled();
 
         $this->expectException(\RuntimeException::class);
 
-        $issue = $this->newIssue();
         $issue
             ->setBody('Lala')
             ->ensure();
@@ -72,11 +83,20 @@ class JiraSecurityIssueTest extends TestCase
 
     public function testCreatingIssueWithKeyLabel(): void
     {
-        $this->issueService->create(Argument::any())->willReturn((object) ['key' => 'ABC-13']);
-
-        $this->issueService->search(Argument::any())->willReturn((object) ['total' => 0]);
-
         $issue = $this->newIssue();
+
+        $this->issueService
+            ->create(Argument::any())
+            ->willReturn((object) ['key' => 'ABC-13']);
+
+        $this->issueService
+            ->addComment(Argument::any(), Argument::any())
+            ->willReturn(null);
+
+        $this->issueService
+            ->search(Argument::any())
+            ->willReturn((object) ['total' => 0]);
+
         $issueId = $issue
             ->setTitle('The title')
             ->setBody('Lala')
@@ -95,6 +115,7 @@ class JiraSecurityIssueTest extends TestCase
             ]);
 
         $issue = $this->newIssue();
+
         $issueId = $issue
             ->setTitle('The title')
             ->setBody('Lala')
@@ -110,14 +131,15 @@ class JiraSecurityIssueTest extends TestCase
     {
         \putenv('JIRA_WATCHERS=user1@example.com,user2@example.com');
 
-        // We're passing this var as a reference to the closure, so it can
-        // pass back the object it received, so we can test it.
-        $issueField = null;
-        $this->issueService->create(Argument::any())->will(function ($args) use (&$issueField) {
-            $issueField = $args[0];
+        $issue = $this->newIssue();
 
-            return (object) ['key' => 'ABC-12'];
-        });
+        $this->issueService
+            ->create(Argument::any())
+            ->willReturn((object) ['key' => 'ABC-15']);
+
+        $this->issueService
+            ->addComment(Argument::any(), Argument::any())
+            ->willReturn(null);
 
         $this->userService
             ->findAssignableUsers([
@@ -134,13 +156,83 @@ class JiraSecurityIssueTest extends TestCase
             ])
             ->willReturn([(object) ['accountId' => '1234']]);
 
-        $this->issueService->addWatcher('ABC-12', 'abcd')->shouldBeCalled();
-        $this->issueService->addWatcher('ABC-12', '1234')->shouldBeCalled();
+        $this->issueService
+            ->addWatcher('ABC-15', 'abcd')
+            ->shouldBeCalled();
+        $this->issueService
+            ->addWatcher('ABC-15', '1234')
+            ->shouldBeCalled();
 
-        $issue = $this->newIssue();
         $issue
             ->setTitle('The title')
             ->setBody('Lala')
             ->ensure();
+    }
+
+    public function testAddingCommentWithOutWatchers(): void
+    {
+        $issue = $this->newIssue();
+
+        $this->issueService
+            ->create(Argument::any())
+            ->willReturn((object) ['key' => 'ABC-16']);
+        $this->issueService
+            ->addComment('ABC-16', $issue->createComment(JiraSecurityIssue::NO_WATCHERS_TEXT))
+            ->shouldBeCalled();
+
+        $issue
+            ->setTitle('The title')
+            ->setBody('Lala')
+            ->ensure();
+
+    }
+
+    public function testAddingCommentWithWatchers(): void
+    {
+        \putenv('JIRA_WATCHERS=user1@example.com,user2@example.com');
+
+        $issue = $this->newIssue();
+
+        $this->issueService
+            ->create(Argument::any())
+            ->willReturn((object) ['key' => 'ABC-17']);
+
+        $this->issueService
+            ->addWatcher(Argument::any(), Argument::any())
+            ->willReturn(null);
+
+        $this->userService
+            ->findAssignableUsers([
+                'query' => 'user1@example.com',
+                'project' => 'ABC',
+                'maxResults' => 1
+            ])
+            ->willReturn([(object) ['accountId' => 'abcd']]);
+        $this->userService
+            ->findAssignableUsers([
+                'query' => 'user2@example.com',
+                'project' => 'ABC',
+                'maxResults' => 1
+            ])
+            ->willReturn([(object) ['accountId' => '1234']]);
+
+        $this->issueService
+            ->addComment('ABC-17', $issue->createComment("This issue is being followed by [~abcd] and [~1234]"))
+            ->shouldBeCalled();
+
+        $issue
+            ->setTitle('The title')
+            ->setBody('Lala')
+            ->ensure();
+    }
+
+    public function testFollowersFormatting(): void
+    {
+        $issue = $this->newIssue();
+
+        $this->assertEquals('[~one]', $issue->formatFollowers(['one']));
+        $this->assertEquals('[~one] and [~two]', $issue->formatFollowers(['one', 'two']));
+        $this->assertEquals('[~one], [~two] and [~three]', $issue->formatFollowers(['one', 'two', 'three']));
+        $this->assertEquals('[~one], [~two], [~three] and [~four]', $issue->formatFollowers(['one', 'two', 'three', 'four']));
     }
 }
