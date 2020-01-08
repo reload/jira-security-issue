@@ -254,7 +254,6 @@ class JiraSecurityIssue
         }
 
         $user = \array_pop($users);
-        print_r($user);
 
         return $user->name;
     }
