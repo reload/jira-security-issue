@@ -7,6 +7,7 @@ namespace Reload;
 use JiraRestApi\Configuration\ArrayConfiguration;
 use JiraRestApi\Issue\IssueField;
 use JiraRestApi\Issue\IssueService;
+use JiraRestApi\JiraException;
 use JiraRestApi\User\UserService;
 use RuntimeException;
 use Throwable;
@@ -26,6 +27,13 @@ class JiraSecurityIssue
      * @var \JiraRestApi\User\UserService
      */
     protected $userService;
+
+    /**
+     * Jira project to create issue in.
+     *
+     * @var string
+     */
+    protected $project;
 
     /**
      * Type of issue to create.
@@ -121,7 +129,7 @@ class JiraSecurityIssue
         return $this;
     }
 
-    public function setKeyLabel($string): JiraSecurityIssue
+    public function setKeyLabel(string $string): JiraSecurityIssue
     {
         $this->keyLabels[] = $string;
 
@@ -147,7 +155,6 @@ class JiraSecurityIssue
         if ($existing) {
             return $existing;
         }
-        $this->validate();
 
         $issueField = new IssueField();
         $issueField->setProjectKey($this->project)
@@ -191,6 +198,8 @@ class JiraSecurityIssue
      */
     public function exists(): ?string
     {
+        $this->validate();
+
         if (!$this->keyLabels) {
             return null;
         }
