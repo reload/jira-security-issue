@@ -226,13 +226,80 @@ class JiraSecurityIssueTest extends TestCase
             ->ensure();
     }
 
-    public function testFollowersFormatting(): void
+    public function testMultipleFormatting(): void
     {
         $issue = $this->newIssue();
 
-        $this->assertEquals('[~one]', $issue->formatFollowers(['one']));
-        $this->assertEquals('[~one] and [~two]', $issue->formatFollowers(['one', 'two']));
-        $this->assertEquals('[~one], [~two] and [~three]', $issue->formatFollowers(['one', 'two', 'three']));
-        $this->assertEquals('[~one], [~two], [~three] and [~four]', $issue->formatFollowers(['one', 'two', 'three', 'four']));
+        $this->assertEquals('one', $issue->formatMultiple(['one']));
+        $this->assertEquals('one and two', $issue->formatMultiple(['one', 'two']));
+        $this->assertEquals('one, two and three', $issue->formatMultiple(['one', 'two', 'three']));
+        $this->assertEquals('one, two, three and four', $issue->formatMultiple(['one', 'two', 'three', 'four']));
+    }
+
+    public function testUsersFormatting(): void
+    {
+        $issue = $this->newIssue();
+
+        $this->assertEquals('[~one] and [~two]', $issue->formatUsers(['one', 'two']));
+    }
+
+    public function testQuotedFormatting(): void
+    {
+        $issue = $this->newIssue();
+
+        $this->assertEquals('"one" and "two"', $issue->formatQuoted(['one', 'two']));
+    }
+
+    public function testWatcherNotFound(): void
+    {
+        \putenv('JIRA_WATCHERS=user1@example.com,notfound@example.com,user2@example.com,notfoundeither@example.com');
+
+        $issue = $this->newIssue();
+
+        $this->issueService
+            ->create(Argument::any())
+            ->willReturn((object) ['key' => 'ABC-17']);
+
+        $this->issueService
+            ->addWatcher(Argument::any(), Argument::any())
+            ->willReturn(null);
+
+        $this->userService
+            ->findAssignableUsers([
+                'query' => 'user1@example.com',
+                'project' => 'ABC',
+                'maxResults' => 1
+            ])
+            ->willReturn([(object) ['name' => 'abcd']]);
+        $this->userService
+            ->findAssignableUsers([
+                'query' => 'user2@example.com',
+                'project' => 'ABC',
+                'maxResults' => 1
+            ])
+            ->willReturn([(object) ['name' => '1234']]);
+        $this->userService
+            ->findAssignableUsers([
+                'query' => 'notfound@example.com',
+                'project' => 'ABC',
+                'maxResults' => 1
+            ])
+            ->willReturn([]);
+        $this->userService
+            ->findAssignableUsers([
+                'query' => 'notfoundeither@example.com',
+                'project' => 'ABC',
+                'maxResults' => 1
+            ])
+            ->willReturn([]);
+
+        $this->issueService
+            ->addComment('ABC-17', $issue->createComment("This issue is being followed by [~abcd] and [~1234]\n\nCould not find user for \"notfound@example.com\" and \"notfoundeither@example.com\", please check the users listed in JIRA_WATCHERS."))
+            ->shouldBeCalled();
+
+        $issue
+            ->setTitle('The title')
+            ->setBody('Lala')
+            ->ensure();
     }
 }

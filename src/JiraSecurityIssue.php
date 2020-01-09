@@ -18,6 +18,7 @@ class JiraSecurityIssue
 {
     public const WATCHERS_TEXT = "This issue is being followed by %s";
     public const NO_WATCHERS_TEXT = "No watchers on this issue, remember to notify relevant people.";
+    public const NOT_FOUND_WATCHERS_TEXT = "Could not find user for %s, please check the users listed in JIRA_WATCHERS.";
 
     /**
      * Service used for interacting with Jira issues.
@@ -177,7 +178,8 @@ class JiraSecurityIssue
             throw new RuntimeException("Could not create issue: {$t->getMessage()}");
         }
 
-        $followers = [];
+        $addedWatchers = [];
+        $notFoundWatchers = [];
         $watchers = \getenv('JIRA_WATCHERS');
 
         if ($watchers) {
@@ -187,18 +189,24 @@ class JiraSecurityIssue
                 $accountId = $this->userNameByEmail($watcher);
 
                 if (!$accountId) {
+                    $notFoundWatchers[] = $watcher;
                     continue;
                 }
 
                 $this->issueService->addWatcher($ret->key, $accountId);
-                $followers[] = $accountId;
+                $addedWatchers[] = $accountId;
             }
-
         }
 
-        $comment = $followers ?
-            $this->createComment(sprintf(self::WATCHERS_TEXT, $this->formatFollowers($followers))) :
-            $this->createComment(self::NO_WATCHERS_TEXT);
+        $commentText = $addedWatchers ?
+            sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers)) :
+            self::NO_WATCHERS_TEXT;
+
+        if ($notFoundWatchers) {
+            $commentText .= "\n\n" . sprintf(self::NOT_FOUND_WATCHERS_TEXT, $this->formatQuoted($notFoundWatchers));
+        }
+
+        $comment = $this->createComment($commentText);
 
         $this->issueService->addComment($ret->key, $comment);
 
@@ -286,14 +294,28 @@ class JiraSecurityIssue
         return $comment;
     }
 
-    public function formatFollowers(array $followers): string
+    public function formatUsers(array $users): string
     {
-        $followers = array_map(function ($follower) {
-            return '[~' . $follower. ']';
-        }, $followers);
+        $users = array_map(function ($user) {
+            return '[~' . $user. ']';
+        }, $users);
 
-        $last = array_pop($followers);
+        return $this->formatMultiple($users);
+    }
 
-        return $followers ? implode(', ', $followers) . ' and ' . $last : $last;
+    public function formatQuoted(array $wathers): string
+    {
+        $wathers = array_map(function ($wather) {
+            return '"' . $wather. '"';
+        }, $wathers);
+
+        return $this->formatMultiple($wathers);
+    }
+
+    public function formatMultiple(array $strings): string
+    {
+        $last = array_pop($strings);
+
+        return $strings ? implode(', ', $strings) . ' and ' . $last : $last;
     }
 }
