@@ -237,6 +237,22 @@ class JiraSecurityIssue
 
     public function userNameByEmail(string $email): ?string
     {
+        $users = $this->userDataByEmail($email);
+
+        if (!$users) {
+            return null;
+        }
+
+        $user = \array_pop($users);
+
+        return $user->name;
+    }
+
+    /**
+     * @return array<\JiraRestApi\User\User>
+     */
+    public function userDataByEmail(string $email): array
+    {
         try {
             $paramArray = [
                 'query' => $email,
@@ -246,16 +262,14 @@ class JiraSecurityIssue
 
             $users = $this->userService->findAssignableUsers($paramArray);
 
-            if (!$users) {
-                return null;
+            if ($users) {
+                return $users;
             }
         } catch (JiraException $e) {
-            return null;
+            // Fall through to returning empty array.
         }
 
-        $user = \array_pop($users);
-
-        return $user->name;
+        return [];
     }
 
     public function createComment(string $text): Comment
