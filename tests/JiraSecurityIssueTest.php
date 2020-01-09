@@ -17,7 +17,7 @@ class JiraSecurityIssueTest extends TestCase
         \putenv('JIRA_USER=user');
         \putenv('JIRA_TOKEN=pass');
         \putenv('JIRA_PROJECT=ABC');
-        \putenv('JIRA_ISSUETYPE=Mytype');
+        \putenv('JIRA_ISSUE_TYPE=Mytype');
         \putenv('JIRA_WATCHERS=');
 
         $this->issueService = $this->prophesize(IssueService::class);

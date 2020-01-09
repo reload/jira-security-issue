@@ -72,7 +72,7 @@ class JiraSecurityIssue
     public function __construct()
     {
         $this->project = \getenv('JIRA_PROJECT') ?: '';
-        $this->issueType = \getenv('JIRA_ISSUETYPE') ?: 'Bug';
+        $this->issueType = \getenv('JIRA_ISSUE_TYPE') ?: 'Bug';
 
         $conf = [
             'jiraHost' => \getenv('JIRA_HOST'),
