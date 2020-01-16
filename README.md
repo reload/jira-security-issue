@@ -23,7 +23,7 @@ CI systems.
 - `JIRA_TOKEN`: A reference to the repo secret `JiraApiToken` (**REQUIRED**)
 - `JIRA_HOST`: The endpoint for your Jira instance, e.g. https://foo.atlassian.net (**REQUIRED**)
 - `JIRA_USER`: The ID of the Jira user which is associated with the 'JiraApiToken' secret, eg 'someuser@reload.dk' (**REQUIRED**)
-- `JIRA_PROJECT`: The project key for the Jira project where issues should be created, eg `TEST` or `ABC`. (**REQUIRED**)
+- `JIRA_PROJECT`: The project key for the Jira project where issues should be created, eg `TEST` or `ABC`. (**REQUIRED** if not set in code)
 - `JIRA_ISSUE_TYPE`: Type of issue to create, e.g. `Security`. Defaults to `Bug`. (*Optional*)
 - `JIRA_WATCHERS`: Jira users to add as watchers to tickets. Separate
   multiple watchers with comma (no spaces). (*Optional*)

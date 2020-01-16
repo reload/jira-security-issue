@@ -49,6 +49,13 @@ class JiraSecurityIssue
     protected $issueType = 'Bug';
 
     /**
+     * Watchers for the issue.
+     *
+     * @var array<string>
+     */
+    protected $watchers;
+
+    /**
      * Issue title.
      *
      * @var string
@@ -73,6 +80,12 @@ class JiraSecurityIssue
     {
         $this->project = \getenv('JIRA_PROJECT') ?: '';
         $this->issueType = \getenv('JIRA_ISSUE_TYPE') ?: 'Bug';
+
+        $watchers = \getenv('JIRA_WATCHERS');
+
+        if ($watchers) {
+            $this->watchers = \explode(',', $watchers);
+        }
 
         $conf = [
             'jiraHost' => \getenv('JIRA_HOST'),
@@ -107,7 +120,6 @@ class JiraSecurityIssue
     public function validate(): void
     {
         $envVars = [
-            'project key' => 'JIRA_PROJECT',
             'Jira host' => 'JIRA_HOST',
             'Jira user' => 'JIRA_USER',
             'Jira token' => 'JIRA_TOKEN',
@@ -119,6 +131,10 @@ class JiraSecurityIssue
             }
         }
 
+        if (!$this->project && !\getenv('JIRA_PROJECT')) {
+            throw new RuntimeException('No project key supplied, please set JIRA_PROJECT environment variable');
+        }
+
         if (!$this->title) {
             throw new RuntimeException('No title supplied');
         }
@@ -126,6 +142,13 @@ class JiraSecurityIssue
         if (!$this->body) {
             throw new RuntimeException('No body supplied');
         }
+    }
+
+    public function setProject(string $project): JiraSecurityIssue
+    {
+        $this->project = $project;
+
+        return $this;
     }
 
     public function setTitle(string $title): JiraSecurityIssue
@@ -138,6 +161,13 @@ class JiraSecurityIssue
     public function setKeyLabel(string $string): JiraSecurityIssue
     {
         $this->keyLabels[] = $string;
+
+        return $this;
+    }
+
+    public function setWatcher(string $watcher): JiraSecurityIssue
+    {
+        $this->watchers[] = $watcher;
 
         return $this;
     }
@@ -180,22 +210,18 @@ class JiraSecurityIssue
 
         $addedWatchers = [];
         $notFoundWatchers = [];
-        $watchers = \getenv('JIRA_WATCHERS');
 
-        if ($watchers) {
-            $watchers = \explode(',', $watchers);
+        foreach ($this->watchers as $watcher) {
+            $accountId = $this->userNameByEmail($watcher);
 
-            foreach ($watchers as $watcher) {
-                $accountId = $this->userNameByEmail($watcher);
+            if (!$accountId) {
+                $notFoundWatchers[] = $watcher;
 
-                if (!$accountId) {
-                    $notFoundWatchers[] = $watcher;
-                    continue;
-                }
-
-                $this->issueService->addWatcher($ret->key, $accountId);
-                $addedWatchers[] = $accountId;
+                continue;
             }
+
+            $this->issueService->addWatcher($ret->key, $accountId);
+            $addedWatchers[] = $accountId;
         }
 
         $commentText = $addedWatchers ?
