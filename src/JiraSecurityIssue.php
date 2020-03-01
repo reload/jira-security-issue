@@ -53,7 +53,7 @@ class JiraSecurityIssue
      *
      * @var array<string>
      */
-    protected $watchers;
+    protected $watchers = [];
 
     /**
      * Issue title.
