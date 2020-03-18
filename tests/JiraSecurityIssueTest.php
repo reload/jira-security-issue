@@ -147,14 +147,14 @@ class JiraSecurityIssueTest extends TestCase
                 'project' => 'ABC',
                 'maxResults' => 1
             ])
-            ->willReturn([(object) ['name' => 'abcd']]);
+            ->willReturn([(object) ['accountId' => 'abcd']]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
                 'maxResults' => 1
             ])
-            ->willReturn([(object) ['name' => '1234']]);
+            ->willReturn([(object) ['accountId' => '1234']]);
 
         $this->issueService
             ->addWatcher('ABC-15', 'abcd')
@@ -207,14 +207,14 @@ class JiraSecurityIssueTest extends TestCase
                 'project' => 'ABC',
                 'maxResults' => 1
             ])
-            ->willReturn([(object) ['name' => 'abcd']]);
+            ->willReturn([(object) ['accountId' => 'abcd']]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
                 'maxResults' => 1
             ])
-            ->willReturn([(object) ['name' => '1234']]);
+            ->willReturn([(object) ['accountId' => '1234']]);
 
         $this->issueService
             ->addComment('ABC-17', $issue->createComment("This issue is being followed by [~abcd] and [~1234]"))
@@ -270,14 +270,14 @@ class JiraSecurityIssueTest extends TestCase
                 'project' => 'ABC',
                 'maxResults' => 1
             ])
-            ->willReturn([(object) ['name' => 'abcd']]);
+            ->willReturn([(object) ['accountId' => 'abcd']]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
                 'maxResults' => 1
             ])
-            ->willReturn([(object) ['name' => '1234']]);
+            ->willReturn([(object) ['accountId' => '1234']]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'notfound@example.com',

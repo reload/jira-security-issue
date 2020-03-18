@@ -279,7 +279,7 @@ class JiraSecurityIssue
 
         $user = \array_pop($users);
 
-        return $user->name;
+        return $user->accountId;
     }
 
     /**
