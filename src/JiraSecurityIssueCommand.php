@@ -9,6 +9,7 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use webignition\SymfonyConsole\TypedInput\TypedInput;
 
 class JiraSecurityIssueCommand extends Command
 {
@@ -29,7 +30,12 @@ class JiraSecurityIssueCommand extends Command
             ->setHelp('Create a Jira issue.')
             ->addArgument('title', InputArgument::REQUIRED, 'Title of issue')
             ->addArgument('body', InputArgument::REQUIRED, 'Body of issue')
-            ->addOption('key-label', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Label keys to use');
+            ->addOption(
+                'key-label',
+                null,
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'Label keys to use',
+            );
     }
 
     /**
@@ -37,12 +43,17 @@ class JiraSecurityIssueCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $typedInput = new TypedInput($input);
+
         $issue = new JiraSecurityIssue();
 
-        $issue->setTitle($input->getArgument('title'))
-            ->setBody($input->getArgument('body'));
+        $issue->setTitle($typedInput->getStringArgument('title') ?? '')
+            ->setBody($typedInput->getStringArgument('body') ?? '');
 
-        foreach ($input->getOption('key-label') as $label) {
+        /** @var array<string> $labels */
+        $labels = $input->getOption('key-label');
+
+        foreach ($labels as $label) {
             $issue->setKeyLabel($label);
         }
 

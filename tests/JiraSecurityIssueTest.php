@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Reload;
 
 use JiraRestApi\Issue\IssueService;
+use JiraRestApi\User\User;
 use JiraRestApi\User\UserService;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
+use RuntimeException;
 
 class JiraSecurityIssueTest extends TestCase
 {
@@ -45,6 +47,7 @@ class JiraSecurityIssueTest extends TestCase
         $issueField = null;
         $this->issueService
             ->create(Argument::any())
+             // phpcs:ignore SlevomatCodingStandard.Functions.StaticClosure.ClosureNotStatic
             ->will(function ($args) use (&$issueField) {
                 $issueField = $args[0];
 
@@ -74,7 +77,7 @@ class JiraSecurityIssueTest extends TestCase
             ->create()
             ->shouldNotBeCalled();
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
 
         $issue
             ->setBody('Lala')
@@ -145,16 +148,16 @@ class JiraSecurityIssueTest extends TestCase
             ->findAssignableUsers([
                 'query' => 'user1@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
-            ->willReturn([(object) ['accountId' => 'abcd']]);
+            ->willReturn([new User(['accountId' => 'abcd'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
-            ->willReturn([(object) ['accountId' => '1234']]);
+            ->willReturn([new User(['accountId' => '1234'])]);
 
         $this->issueService
             ->addWatcher('ABC-15', 'abcd')
@@ -184,7 +187,6 @@ class JiraSecurityIssueTest extends TestCase
             ->setTitle('The title')
             ->setBody('Lala')
             ->ensure();
-
     }
 
     public function testAddingCommentWithWatchers(): void
@@ -205,16 +207,16 @@ class JiraSecurityIssueTest extends TestCase
             ->findAssignableUsers([
                 'query' => 'user1@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
-            ->willReturn([(object) ['accountId' => 'abcd']]);
+            ->willReturn([new User(['accountId' => 'abcd'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
-            ->willReturn([(object) ['accountId' => '1234']]);
+            ->willReturn([new User(['accountId' => '1234'])]);
 
         $this->issueService
             ->addComment('ABC-17', $issue->createComment("This issue is being followed by [~abcd] and [~1234]"))
@@ -268,33 +270,40 @@ class JiraSecurityIssueTest extends TestCase
             ->findAssignableUsers([
                 'query' => 'user1@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
-            ->willReturn([(object) ['accountId' => 'abcd']]);
+            ->willReturn([new User(['accountId' => 'abcd'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
-            ->willReturn([(object) ['accountId' => '1234']]);
+            ->willReturn([new User(['accountId' => '1234'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'notfound@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
             ->willReturn([]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'notfoundeither@example.com',
                 'project' => 'ABC',
-                'maxResults' => 1
+                'maxResults' => 1,
             ])
             ->willReturn([]);
 
         $this->issueService
-            ->addComment('ABC-17', $issue->createComment("This issue is being followed by [~abcd] and [~1234]\n\nCould not find user for \"notfound@example.com\" and \"notfoundeither@example.com\", please check the users listed in JIRA_WATCHERS."))
+            ->addComment(
+                'ABC-17',
+                $issue->createComment(
+                    "This issue is being followed by [~abcd] and [~1234]\n\n" .
+                    "Could not find user for \"notfound@example.com\" and \"notfoundeither@example.com\"," .
+                    " please check the users listed in JIRA_WATCHERS.",
+                ),
+            )
             ->shouldBeCalled();
 
         $issue
