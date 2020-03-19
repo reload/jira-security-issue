@@ -217,16 +217,16 @@ class JiraSecurityIssue
         $notFoundWatchers = [];
 
         foreach ($this->watchers as $watcher) {
-            $accountId = $this->userNameByEmail($watcher);
+            $account = $this->findUser($watcher);
 
-            if (!$accountId) {
+            if (!$account) {
                 $notFoundWatchers[] = $watcher;
 
                 continue;
             }
 
-            $this->issueService->addWatcher($ret->key, $accountId);
-            $addedWatchers[] = $accountId;
+            $this->issueService->addWatcher($ret->key, $account->accountId);
+            $addedWatchers[] = $account;
         }
 
         $commentText = $addedWatchers ?
@@ -277,45 +277,33 @@ class JiraSecurityIssue
         return null;
     }
 
-    public function userNameByEmail(string $email): ?string
-    {
-        $users = $this->userDataByEmail($email);
-
-        if (!$users) {
-            return null;
-        }
-
-        $user = \array_pop($users);
-
-        if (!$user instanceof User) {
-            return null;
-        }
-
-        return $user->accountId;
-    }
-
-    /**
-     * @return array<\JiraRestApi\User\User>
-     */
-    public function userDataByEmail(string $email): array
+    public function findUser(string $query): ?User
     {
         try {
             $paramArray = [
-                'query' => $email,
+                'query' => $query,
                 'project' => $this->project,
                 'maxResults' => 1,
             ];
 
             $users = $this->userService->findAssignableUsers($paramArray);
 
-            if ($users) {
-                return $users;
+            if (!\is_array($users)) {
+                return null;
             }
+
+            $user = \array_pop($users);
+
+            if (!$user instanceof User) {
+                return null;
+            }
+
+            return $user;
         } catch (JiraException $e) {
             // Fall through to returning empty array.
         }
 
-        return [];
+        return null;
     }
 
     public function createComment(string $text): Comment
@@ -333,12 +321,12 @@ class JiraSecurityIssue
     }
 
     /**
-     * @param array<string> $users
+     * @param array<\JiraRestApi\User\User> $users
      */
     public function formatUsers(array $users): string
     {
         $users = \array_map(static function ($user) {
-            return '[~' . $user . ']';
+            return $user->displayName;
         }, $users);
 
         return $this->formatMultiple($users);
