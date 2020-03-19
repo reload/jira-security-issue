@@ -150,14 +150,14 @@ class JiraSecurityIssueTest extends TestCase
                 'project' => 'ABC',
                 'maxResults' => 1,
             ])
-            ->willReturn([new User(['accountId' => 'abcd'])]);
+            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
                 'maxResults' => 1,
             ])
-            ->willReturn([new User(['accountId' => '1234'])]);
+            ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
 
         $this->issueService
             ->addWatcher('ABC-15', 'abcd')
@@ -209,17 +209,17 @@ class JiraSecurityIssueTest extends TestCase
                 'project' => 'ABC',
                 'maxResults' => 1,
             ])
-            ->willReturn([new User(['accountId' => 'abcd'])]);
+            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
                 'maxResults' => 1,
             ])
-            ->willReturn([new User(['accountId' => '1234'])]);
+            ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
 
         $this->issueService
-            ->addComment('ABC-17', $issue->createComment("This issue is being followed by [~abcd] and [~1234]"))
+            ->addComment('ABC-17', $issue->createComment("This issue is being followed by efgh and 5678"))
             ->shouldBeCalled();
 
         $issue
@@ -242,7 +242,10 @@ class JiraSecurityIssueTest extends TestCase
     {
         $issue = $this->newIssue();
 
-        $this->assertEquals('[~one] and [~two]', $issue->formatUsers(['one', 'two']));
+        $this->assertEquals(
+            'one and two',
+            $issue->formatUsers([new User(['displayName' => 'one']), new User(['displayName' => 'two'])]),
+        );
     }
 
     public function testQuotedFormatting(): void
@@ -272,14 +275,14 @@ class JiraSecurityIssueTest extends TestCase
                 'project' => 'ABC',
                 'maxResults' => 1,
             ])
-            ->willReturn([new User(['accountId' => 'abcd'])]);
+            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'user2@example.com',
                 'project' => 'ABC',
                 'maxResults' => 1,
             ])
-            ->willReturn([new User(['accountId' => '1234'])]);
+            ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
         $this->userService
             ->findAssignableUsers([
                 'query' => 'notfound@example.com',
@@ -299,7 +302,7 @@ class JiraSecurityIssueTest extends TestCase
             ->addComment(
                 'ABC-17',
                 $issue->createComment(
-                    "This issue is being followed by [~abcd] and [~1234]\n\n" .
+                    "This issue is being followed by efgh and 5678\n\n" .
                     "Could not find user for \"notfound@example.com\" and \"notfoundeither@example.com\"," .
                     " please check the users listed in JIRA_WATCHERS.",
                 ),

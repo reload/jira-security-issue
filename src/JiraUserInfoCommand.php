@@ -41,7 +41,7 @@ class JiraUserInfoCommand extends Command
 
         $email = $typedInput->getStringArgument('email') ?? '';
 
-        $data = $issue->userDataByEmail($email);
+        $data = $issue->findUser($email);
 
         $output->writeln(\print_r($data, true));
 
