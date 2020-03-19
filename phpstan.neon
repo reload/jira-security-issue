@@ -1,5 +1,9 @@
 parameters:
     level: max
+    paths:
+        - .
     excludes_analyse:
         - vendor
         - tests
+    ignoreErrors:
+        - '/Access to an undefined property JiraRestApi\\User\\User::\$accountId\./'

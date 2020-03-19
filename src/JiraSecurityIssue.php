@@ -10,6 +10,7 @@ use JiraRestApi\Issue\IssueField;
 use JiraRestApi\Issue\IssueService;
 use JiraRestApi\Issue\Visibility;
 use JiraRestApi\JiraException;
+use JiraRestApi\User\User;
 use JiraRestApi\User\UserService;
 use RuntimeException;
 use Throwable;
@@ -18,7 +19,8 @@ class JiraSecurityIssue
 {
     public const WATCHERS_TEXT = "This issue is being followed by %s";
     public const NO_WATCHERS_TEXT = "No watchers on this issue, remember to notify relevant people.";
-    public const NOT_FOUND_WATCHERS_TEXT = "Could not find user for %s, please check the users listed in JIRA_WATCHERS.";
+    public const NOT_FOUND_WATCHERS_TEXT = "Could not find user for %s, " .
+                                         "please check the users listed in JIRA_WATCHERS.";
 
     /**
      * Service used for interacting with Jira issues.
@@ -127,7 +129,9 @@ class JiraSecurityIssue
 
         foreach ($envVars as $desc => $name) {
             if (!\getenv($name)) {
-                throw new RuntimeException(\sprintf('No %s supplied, please set %s environment variable', $desc, $name));
+                throw new RuntimeException(
+                    \sprintf('No %s supplied, please set %s environment variable', $desc, $name),
+                );
             }
         }
 
@@ -203,6 +207,7 @@ class JiraSecurityIssue
         }
 
         try {
+            /** @var \JiraRestApi\Issue\Issue $ret */
             $ret = $this->issueService->create($issueField);
         } catch (Throwable $t) {
             throw new RuntimeException("Could not create issue: {$t->getMessage()}");
@@ -225,11 +230,11 @@ class JiraSecurityIssue
         }
 
         $commentText = $addedWatchers ?
-            sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers)) :
+            \sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers)) :
             self::NO_WATCHERS_TEXT;
 
         if ($notFoundWatchers) {
-            $commentText .= "\n\n" . sprintf(self::NOT_FOUND_WATCHERS_TEXT, $this->formatQuoted($notFoundWatchers));
+            $commentText .= "\n\n" . \sprintf(self::NOT_FOUND_WATCHERS_TEXT, $this->formatQuoted($notFoundWatchers));
         }
 
         $comment = $this->createComment($commentText);
@@ -260,10 +265,13 @@ class JiraSecurityIssue
 
         $jql .= "ORDER BY created DESC";
 
+        /** @var \JiraRestApi\Issue\IssueSearchResult $result */
         $result = $this->issueService->search($jql);
 
-        if ($result->total > 0) {
-            return \reset($result->issues)->key;
+        if (($result->total > 0)) {
+            $issue = \reset($result->issues);
+
+            return $issue ? $issue->key : null;
         }
 
         return null;
@@ -278,6 +286,10 @@ class JiraSecurityIssue
         }
 
         $user = \array_pop($users);
+
+        if (!$user instanceof User) {
+            return null;
+        }
 
         return $user->accountId;
     }
@@ -320,28 +332,37 @@ class JiraSecurityIssue
         return $comment;
     }
 
+    /**
+     * @param array<string> $users
+     */
     public function formatUsers(array $users): string
     {
-        $users = array_map(function ($user) {
-            return '[~' . $user. ']';
+        $users = \array_map(static function ($user) {
+            return '[~' . $user . ']';
         }, $users);
 
         return $this->formatMultiple($users);
     }
 
+    /**
+     * @param array<string> $wathers
+     */
     public function formatQuoted(array $wathers): string
     {
-        $wathers = array_map(function ($wather) {
-            return '"' . $wather. '"';
+        $wathers = \array_map(static function ($wather) {
+            return '"' . $wather . '"';
         }, $wathers);
 
         return $this->formatMultiple($wathers);
     }
 
+    /**
+     * @param array<string> $strings
+     */
     public function formatMultiple(array $strings): string
     {
-        $last = array_pop($strings);
+        $last = \array_pop($strings) ?? '';
 
-        return $strings ? implode(', ', $strings) . ' and ' . $last : $last;
+        return $strings ? \implode(', ', $strings) . ' and ' . $last : $last;
     }
 }

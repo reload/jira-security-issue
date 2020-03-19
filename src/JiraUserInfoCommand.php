@@ -7,8 +7,8 @@ namespace Reload;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use webignition\SymfonyConsole\TypedInput\TypedInput;
 
 class JiraUserInfoCommand extends Command
 {
@@ -35,11 +35,15 @@ class JiraUserInfoCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $typedInput = new TypedInput($input);
+
         $issue = new JiraSecurityIssue();
 
-        $data = $issue->userDataByEmail($input->getArgument('email'));
+        $email = $typedInput->getStringArgument('email') ?? '';
 
-        $output->writeln(print_r($data, true));
+        $data = $issue->userDataByEmail($email);
+
+        $output->writeln(\print_r($data, true));
 
         return 0;
     }
