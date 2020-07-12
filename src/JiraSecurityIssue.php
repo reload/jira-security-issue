@@ -51,6 +51,13 @@ class JiraSecurityIssue
     protected $issueType = 'Bug';
 
     /**
+     * Role that restricted comments are visible to.
+     *
+     * @var string
+     */
+    protected $restrictedCommentRole = 'Developers';
+
+    /**
      * Watchers for the issue.
      *
      * @var array<string>
@@ -82,6 +89,7 @@ class JiraSecurityIssue
     {
         $this->project = \getenv('JIRA_PROJECT') ?: '';
         $this->issueType = \getenv('JIRA_ISSUE_TYPE') ?: 'Bug';
+        $this->restrictedCommentRole = \getenv('JIRA_RESTRICTED_COMMENT_ROLE') ?: 'Developers';
 
         $watchers = \getenv('JIRA_WATCHERS');
 
@@ -313,7 +321,7 @@ class JiraSecurityIssue
 
         $visibility = new Visibility();
         $visibility->setType('role');
-        $visibility->setValue('Developers');
+        $visibility->setValue($this->restrictedCommentRole);
 
         $comment->visibility = $visibility;
 

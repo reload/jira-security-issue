@@ -27,3 +27,6 @@ CI systems.
 - `JIRA_ISSUE_TYPE`: Type of issue to create, e.g. `Security`. Defaults to `Bug`. (*Optional*)
 - `JIRA_WATCHERS`: Jira users to add as watchers to tickets. Separate
   multiple watchers with comma (no spaces). (*Optional*)
+- `JIRA_RESTRICTED_COMMENT_ROLE`: A comment with restricted visibility
+  to this role is posted with info about who was added as watchers to
+  the issue. Defaults to `Developers`. (*Optional*)
