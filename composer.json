@@ -24,7 +24,7 @@
         }
     ],
     "require-dev": {
-        "appocular/coding-standard": "^1.0",
+        "appocular/coding-standard": "^2.0",
         "phpstan/phpstan": "^1.0.0",
         "phpunit/phpunit": "^8.5",
         "sempro/phpunit-pretty-print": "^1.2",
