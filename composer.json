@@ -4,7 +4,7 @@
     "license": "MIT",
     "require": {
         "php": ">=7.2.0",
-        "lesstif/php-jira-rest-client": "^1.42 || ^2.0",
+        "lesstif/php-jira-rest-client": "^3.1.0",
         "webignition/symfony-console-typed-input": "^0.4.0"
     },
     "autoload": {
