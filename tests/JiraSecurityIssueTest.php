@@ -53,8 +53,8 @@ final class JiraSecurityIssueTest extends TestCase
         $issueField = null;
         $this->issueService
             ->create(Argument::any())
-             // phpcs:ignore SlevomatCodingStandard.Functions.StaticClosure.ClosureNotStatic
-            ->will(function ($args) use (&$issueField) {
+            // phpcs:ignore SlevomatCodingStandard.PHP.DisallowReference.DisallowedInheritingVariableByReference
+            ->will(static function ($args) use (&$issueField) {
                 $issueField = $args[0];
 
                 $issue = new Issue();

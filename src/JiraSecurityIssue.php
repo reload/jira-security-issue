@@ -98,7 +98,7 @@ final class JiraSecurityIssue
     /**
      * Set issue service, primarily for testing.
      */
-    public function setIssueService(IssueService $issueService): JiraSecurityIssue
+    public function setIssueService(IssueService $issueService): self
     {
         $this->issueService = $issueService;
 
@@ -108,7 +108,7 @@ final class JiraSecurityIssue
     /**
      * Set user service, primarily for testing.
      */
-    public function setUserService(UserService $userService): JiraSecurityIssue
+    public function setUserService(UserService $userService): self
     {
         $this->userService = $userService;
 
@@ -144,35 +144,35 @@ final class JiraSecurityIssue
         }
     }
 
-    public function setProject(string $project): JiraSecurityIssue
+    public function setProject(string $project): self
     {
         $this->project = $project;
 
         return $this;
     }
 
-    public function setTitle(string $title): JiraSecurityIssue
+    public function setTitle(string $title): self
     {
         $this->title = $title;
 
         return $this;
     }
 
-    public function setKeyLabel(string $string): JiraSecurityIssue
+    public function setKeyLabel(string $string): self
     {
         $this->keyLabels[] = $string;
 
         return $this;
     }
 
-    public function setWatcher(string $watcher): JiraSecurityIssue
+    public function setWatcher(string $watcher): self
     {
         $this->watchers[] = $watcher;
 
         return $this;
     }
 
-    public function setBody(string $body): JiraSecurityIssue
+    public function setBody(string $body): self
     {
         $this->body = $body;
 
@@ -225,9 +225,9 @@ final class JiraSecurityIssue
             $addedWatchers[] = $account;
         }
 
-        $commentText = $addedWatchers ?
-            \sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers)) :
-            self::NO_WATCHERS_TEXT;
+        $commentText = $addedWatchers
+            ? \sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers))
+            : self::NO_WATCHERS_TEXT;
 
         if ($notFoundWatchers) {
             $commentText .= "\n\n" . \sprintf(self::NOT_FOUND_WATCHERS_TEXT, $this->formatQuoted($notFoundWatchers));
@@ -295,7 +295,7 @@ final class JiraSecurityIssue
             }
 
             return $user;
-        } catch (JiraException) {
+        } catch (JiraException $e) {
             // Fall through to returning empty array.
         }
 

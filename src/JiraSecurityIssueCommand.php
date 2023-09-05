@@ -15,7 +15,10 @@ final class JiraSecurityIssueCommand extends Command
 {
     /**
      * Name of the command.
+     *
+     * @var string
      */
+    // phpcs:ignore SlevomatCodingStandard.TypeHints.PropertyTypeHint.MissingNativeTypeHint
     protected static $defaultName = 'ensure';
 
     /**

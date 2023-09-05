@@ -14,7 +14,10 @@ final class JiraUserInfoCommand extends Command
 {
     /**
      * Name of the command.
+     *
+     * @var string
      */
+    // phpcs:ignore SlevomatCodingStandard.TypeHints.PropertyTypeHint.MissingNativeTypeHint
     protected static $defaultName = 'user-info';
 
     /**
