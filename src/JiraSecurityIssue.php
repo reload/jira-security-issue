@@ -6,7 +6,9 @@ namespace Reload;
 
 use JiraRestApi\Configuration\ArrayConfiguration;
 use JiraRestApi\Issue\Comment;
+use JiraRestApi\Issue\Issue;
 use JiraRestApi\Issue\IssueField;
+use JiraRestApi\Issue\IssueSearchResult;
 use JiraRestApi\Issue\IssueService;
 use JiraRestApi\Issue\Visibility;
 use JiraRestApi\JiraException;
@@ -15,7 +17,7 @@ use JiraRestApi\User\UserService;
 use RuntimeException;
 use Throwable;
 
-class JiraSecurityIssue
+final class JiraSecurityIssue
 {
     public const WATCHERS_TEXT = "This issue is being followed by %s";
     public const NO_WATCHERS_TEXT = "No watchers on this issue, remember to notify relevant people.";
@@ -24,66 +26,52 @@ class JiraSecurityIssue
 
     /**
      * Service used for interacting with Jira issues.
-     *
-     * @var \JiraRestApi\Issue\IssueService
      */
-    protected $issueService;
+    protected IssueService $issueService;
 
     /**
      * Service used for interaction with Jira users.
-     *
-     * @var \JiraRestApi\User\UserService
      */
-    protected $userService;
+    protected UserService $userService;
 
     /**
      * Jira project to create issue in.
-     *
-     * @var string
      */
-    protected $project;
+    protected string $project;
 
     /**
      * Type of issue to create.
-     *
-     * @var string
      */
-    protected $issueType = 'Bug';
+    protected string $issueType = 'Bug';
 
     /**
      * Role that restricted comments are visible to.
-     *
-     * @var string
      */
-    protected $restrictedCommentRole = 'Developers';
+    protected string $restrictedCommentRole = 'Developers';
 
     /**
      * Watchers for the issue.
      *
      * @var array<string>
      */
-    protected $watchers = [];
+    protected array $watchers = [];
 
     /**
      * Issue title.
-     *
-     * @var string
      */
-    protected $title;
+    protected ?string $title = null;
 
     /**
      * Issue body text.
-     *
-     * @var string
      */
-    protected $body;
+    protected ?string $body = null;
 
     /**
      * Labels used for finding existing issue.
      *
      * @var array<string>
      */
-    protected $keyLabels = [];
+    protected array $keyLabels = [];
 
     public function __construct()
     {
@@ -110,7 +98,7 @@ class JiraSecurityIssue
     /**
      * Set issue service, primarily for testing.
      */
-    public function setIssueService(IssueService $issueService): JiraSecurityIssue
+    public function setIssueService(IssueService $issueService): self
     {
         $this->issueService = $issueService;
 
@@ -120,7 +108,7 @@ class JiraSecurityIssue
     /**
      * Set user service, primarily for testing.
      */
-    public function setUserService(UserService $userService): JiraSecurityIssue
+    public function setUserService(UserService $userService): self
     {
         $this->userService = $userService;
 
@@ -156,35 +144,35 @@ class JiraSecurityIssue
         }
     }
 
-    public function setProject(string $project): JiraSecurityIssue
+    public function setProject(string $project): self
     {
         $this->project = $project;
 
         return $this;
     }
 
-    public function setTitle(string $title): JiraSecurityIssue
+    public function setTitle(string $title): self
     {
         $this->title = $title;
 
         return $this;
     }
 
-    public function setKeyLabel(string $string): JiraSecurityIssue
+    public function setKeyLabel(string $string): self
     {
         $this->keyLabels[] = $string;
 
         return $this;
     }
 
-    public function setWatcher(string $watcher): JiraSecurityIssue
+    public function setWatcher(string $watcher): self
     {
         $this->watchers[] = $watcher;
 
         return $this;
     }
 
-    public function setBody(string $body): JiraSecurityIssue
+    public function setBody(string $body): self
     {
         $this->body = $body;
 
@@ -206,17 +194,17 @@ class JiraSecurityIssue
 
         $issueField = new IssueField();
         $issueField->setProjectKey($this->project)
-            ->setSummary($this->title)
-            ->setIssueType($this->issueType)
+            ->setSummary($this->title ?? '')
+            ->setIssueTypeAsString($this->issueType)
             ->setDescription($this->body);
 
         foreach ($this->keyLabels as $label) {
-            $issueField->addLabel($label);
+            $issueField->addLabelAsString($label);
         }
 
         try {
-            /** @var \JiraRestApi\Issue\Issue $ret */
             $ret = $this->issueService->create($issueField);
+            \assert($ret instanceof Issue);
         } catch (Throwable $t) {
             throw new RuntimeException("Could not create issue: {$t->getMessage()}");
         }
@@ -237,9 +225,9 @@ class JiraSecurityIssue
             $addedWatchers[] = $account;
         }
 
-        $commentText = $addedWatchers ?
-            \sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers)) :
-            self::NO_WATCHERS_TEXT;
+        $commentText = $addedWatchers
+            ? \sprintf(self::WATCHERS_TEXT, $this->formatUsers($addedWatchers))
+            : self::NO_WATCHERS_TEXT;
 
         if ($notFoundWatchers) {
             $commentText .= "\n\n" . \sprintf(self::NOT_FOUND_WATCHERS_TEXT, $this->formatQuoted($notFoundWatchers));
@@ -273,8 +261,8 @@ class JiraSecurityIssue
 
         $jql .= "ORDER BY created DESC";
 
-        /** @var \JiraRestApi\Issue\IssueSearchResult $result */
         $result = $this->issueService->search($jql);
+        \assert($result instanceof IssueSearchResult);
 
         if (($result->total > 0)) {
             $issue = \reset($result->issues);
@@ -328,33 +316,23 @@ class JiraSecurityIssue
         return $comment;
     }
 
-    /**
-     * @param array<\JiraRestApi\User\User> $users
-     */
+    /** @param array<\JiraRestApi\User\User> $users */
     public function formatUsers(array $users): string
     {
-        $users = \array_map(static function ($user) {
-            return $user->displayName;
-        }, $users);
+        $users = \array_map(static fn ($user) => $user->displayName, $users);
 
         return $this->formatMultiple($users);
     }
 
-    /**
-     * @param array<string> $wathers
-     */
+    /** @param array<string> $wathers */
     public function formatQuoted(array $wathers): string
     {
-        $wathers = \array_map(static function ($wather) {
-            return '"' . $wather . '"';
-        }, $wathers);
+        $wathers = \array_map(static fn ($wather) => '"' . $wather . '"', $wathers);
 
         return $this->formatMultiple($wathers);
     }
 
-    /**
-     * @param array<string> $strings
-     */
+    /** @param array<string> $strings */
     public function formatMultiple(array $strings): string
     {
         $last = \array_pop($strings) ?? '';

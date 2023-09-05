@@ -10,13 +10,14 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use webignition\SymfonyConsole\TypedInput\TypedInput;
 
-class JiraUserInfoCommand extends Command
+final class JiraUserInfoCommand extends Command
 {
     /**
      * Name of the command.
      *
      * @var string
      */
+    // phpcs:ignore SlevomatCodingStandard.TypeHints.PropertyTypeHint.MissingNativeTypeHint
     protected static $defaultName = 'user-info';
 
     /**
