@@ -17,7 +17,8 @@ use JiraRestApi\User\UserService;
 use RuntimeException;
 use Throwable;
 
-final class JiraSecurityIssue
+// phpcs:ignore SlevomatCodingStandard.Classes.RequireAbstractOrFinal
+class JiraSecurityIssue
 {
     public const WATCHERS_TEXT = "This issue is being followed by %s";
     public const NO_WATCHERS_TEXT = "No watchers on this issue, remember to notify relevant people.";
