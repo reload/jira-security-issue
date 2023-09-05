@@ -10,7 +10,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use webignition\SymfonyConsole\TypedInput\TypedInput;
 
-final class JiraUserInfoCommand extends Command
+// phpcs:ignore SlevomatCodingStandard.Classes.RequireAbstractOrFinal
+class JiraUserInfoCommand extends Command
 {
     /**
      * Name of the command.

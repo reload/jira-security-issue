@@ -11,7 +11,8 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use webignition\SymfonyConsole\TypedInput\TypedInput;
 
-final class JiraSecurityIssueCommand extends Command
+// phpcs:ignore SlevomatCodingStandard.Classes.RequireAbstractOrFinal
+class JiraSecurityIssueCommand extends Command
 {
     /**
      * Name of the command.
