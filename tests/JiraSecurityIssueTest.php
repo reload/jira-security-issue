@@ -12,11 +12,14 @@ use JiraRestApi\User\User;
 use JiraRestApi\User\UserService;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
+use Prophecy\PhpUnit\ProphecyTrait;
 use Prophecy\Prophecy\ObjectProphecy;
 use RuntimeException;
 
 final class JiraSecurityIssueTest extends TestCase
 {
+    use ProphecyTrait;
+
     /**
      * Mocked issue service.
      *

@@ -25,7 +25,8 @@
         "sempro/phpunit-pretty-print": "^1.2",
         "symfony/console": "^5.0",
         "phpspec/prophecy": "^1.15",
-        "jangregor/phpstan-prophecy": "^1.0"
+        "jangregor/phpstan-prophecy": "^1.0",
+        "phpspec/prophecy-phpunit": "^2.0"
     },
     "config": {
         "lock": false,
