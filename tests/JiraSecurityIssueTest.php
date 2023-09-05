@@ -4,15 +4,33 @@ declare(strict_types=1);
 
 namespace Reload;
 
+use JiraRestApi\Issue\Comment;
+use JiraRestApi\Issue\Issue;
+use JiraRestApi\Issue\IssueSearchResult;
 use JiraRestApi\Issue\IssueService;
 use JiraRestApi\User\User;
 use JiraRestApi\User\UserService;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
+use Prophecy\Prophecy\ObjectProphecy;
 use RuntimeException;
 
-class JiraSecurityIssueTest extends TestCase
+final class JiraSecurityIssueTest extends TestCase
 {
+    /**
+     * Mocked issue service.
+     *
+     * @var \Prophecy\Prophecy\ObjectProphecy<\JiraRestApi\Issue\IssueService>
+     */
+    protected ObjectProphecy $issueService;
+
+    /**
+     * Mocked user service.
+     *
+     * @var \Prophecy\Prophecy\ObjectProphecy<\JiraRestApi\User\UserService>
+     */
+    protected ObjectProphecy $userService;
+
     public function setUp(): void
     {
         \putenv('JIRA_HOST=https://localhost');
@@ -24,18 +42,6 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService = $this->prophesize(IssueService::class);
         $this->userService = $this->prophesize(UserService::class);
-    }
-
-    /**
-     * Create a new, properly mocked, JiraSecurityIssue.
-     */
-    protected function newIssue(): JiraSecurityIssue
-    {
-        $issue = new JiraSecurityIssue();
-        $issue->setIssueService($this->issueService->reveal());
-        $issue->setUserService($this->userService->reveal());
-
-        return $issue;
     }
 
     public function testCreatingIssueBasic(): void
@@ -51,12 +57,15 @@ class JiraSecurityIssueTest extends TestCase
             ->will(function ($args) use (&$issueField) {
                 $issueField = $args[0];
 
-                return (object) ['key' => 'ABC-12'];
+                $issue = new Issue();
+                $issue->key = 'ABC-12';
+
+                return $issue;
             });
 
         $this->issueService
             ->addComment(Argument::any(), Argument::any())
-            ->willReturn(null);
+            ->willReturn(new Comment());
 
         $issue
             ->setTitle('The title')
@@ -90,15 +99,25 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService
             ->create(Argument::any())
-            ->willReturn((object) ['key' => 'ABC-13']);
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-13';
+
+                return $issue;
+            });
 
         $this->issueService
             ->addComment(Argument::any(), Argument::any())
-            ->willReturn(null);
+            ->willReturn(new Comment());
 
         $this->issueService
             ->search(Argument::any())
-            ->willReturn((object) ['total' => 0]);
+            ->will(static function () {
+                $searchResult = new IssueSearchResult();
+                $searchResult->total = 0;
+
+                return $searchResult;
+            });
 
         $issueId = $issue
             ->setTitle('The title')
@@ -110,12 +129,16 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService
             ->search("PROJECT = 'ABC' AND labels IN ('banana') ORDER BY created DESC")
-            ->willReturn((object) [
-                'total' => 1,
-                'issues' => [
-                    (object) ['key' => 'ABC-14'],
-                ],
-            ]);
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-14';
+
+                $searchResult = new IssueSearchResult();
+                $searchResult->total = 1;
+                $searchResult->issues = [$issue];
+
+                return $searchResult;
+            });
 
         $issue = $this->newIssue();
 
@@ -138,11 +161,16 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService
             ->create(Argument::any())
-            ->willReturn((object) ['key' => 'ABC-15']);
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-15';
+
+                return $issue;
+            });
 
         $this->issueService
             ->addComment(Argument::any(), Argument::any())
-            ->willReturn(null);
+            ->willReturn(new Comment());
 
         $this->userService
             ->findAssignableUsers([
@@ -158,6 +186,10 @@ class JiraSecurityIssueTest extends TestCase
                 'maxResults' => 1,
             ])
             ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
+
+        $this->issueService
+            ->addWatcher(Argument::any(), Argument::any())
+            ->willReturn(true);
 
         $this->issueService
             ->addWatcher('ABC-15', 'abcd')
@@ -178,7 +210,12 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService
             ->create(Argument::any())
-            ->willReturn((object) ['key' => 'ABC-16']);
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-16';
+
+                return $issue;
+            });
         $this->issueService
             ->addComment('ABC-16', $issue->createComment(JiraSecurityIssue::NO_WATCHERS_TEXT))
             ->shouldBeCalled();
@@ -197,11 +234,16 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService
             ->create(Argument::any())
-            ->willReturn((object) ['key' => 'ABC-17']);
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-17';
+
+                return $issue;
+            });
 
         $this->issueService
             ->addWatcher(Argument::any(), Argument::any())
-            ->willReturn(null);
+            ->willReturn(true);
 
         $this->userService
             ->findAssignableUsers([
@@ -263,11 +305,16 @@ class JiraSecurityIssueTest extends TestCase
 
         $this->issueService
             ->create(Argument::any())
-            ->willReturn((object) ['key' => 'ABC-17']);
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-17';
+
+                return $issue;
+            });
 
         $this->issueService
             ->addWatcher(Argument::any(), Argument::any())
-            ->willReturn(null);
+            ->willReturn(true);
 
         $this->userService
             ->findAssignableUsers([
@@ -313,5 +360,17 @@ class JiraSecurityIssueTest extends TestCase
             ->setTitle('The title')
             ->setBody('Lala')
             ->ensure();
+    }
+
+    /**
+     * Create a new, properly mocked, JiraSecurityIssue.
+     */
+    protected function newIssue(): JiraSecurityIssue
+    {
+        $issue = new JiraSecurityIssue();
+        $issue->setIssueService($this->issueService->reveal());
+        $issue->setUserService($this->userService->reveal());
+
+        return $issue;
     }
 }

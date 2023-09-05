@@ -11,12 +11,10 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use webignition\SymfonyConsole\TypedInput\TypedInput;
 
-class JiraSecurityIssueCommand extends Command
+final class JiraSecurityIssueCommand extends Command
 {
     /**
      * Name of the command.
-     *
-     * @var string
      */
     protected static $defaultName = 'ensure';
 
