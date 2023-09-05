@@ -28,6 +28,7 @@
         "jangregor/phpstan-prophecy": "^1.0"
     },
     "config": {
+        "lock": false,
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "phpstan/extension-installer": true

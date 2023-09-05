@@ -1,4 +1,2 @@
 vendor
-# This is a library, don't commit lockfile.
-composer.lock
 .phpunit.result.cache
