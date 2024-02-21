@@ -83,7 +83,7 @@ class JiraSecurityIssue
         $watchers = \getenv('JIRA_WATCHERS');
 
         if ($watchers) {
-            $this->watchers = \explode(',', $watchers);
+            $this->watchers = \array_filter(\explode(',', \trim($watchers)));
         }
 
         $conf = [

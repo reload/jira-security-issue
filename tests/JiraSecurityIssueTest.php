@@ -365,6 +365,50 @@ final class JiraSecurityIssueTest extends TestCase
             ->ensure();
     }
 
+    public function testEmptyWatcher(): void
+    {
+        \putenv('JIRA_WATCHERS= ');
+
+        $issue = $this->newIssue();
+
+        $this->issueService
+            ->addComment(Argument::any(), Argument::any())
+            ->willReturn(new Comment());
+
+        $this->issueService
+            ->create(Argument::any())
+            ->will(static function () {
+                $issue = new Issue();
+                $issue->key = 'ABC-17';
+
+                return $issue;
+            });
+
+        $this->userService
+            ->findAssignableUsers([
+                'query' => ' ',
+                'project' => 'ABC',
+                'maxResults' => 1,
+            ])
+            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
+
+        $this->issueService
+            ->addComment(
+                'ABC-17',
+                $issue->createComment(
+                    "No watchers on this issue, remember to notify relevant people.",
+                ),
+            )
+            ->shouldBeCalled();
+
+        $this->issueService->addWatcher(Argument::any(), Argument::any())->shouldNotBeCalled();
+
+        $issue
+            ->setTitle('The title')
+            ->setBody('Lala')
+            ->ensure();
+    }
+
     /**
      * Create a new, properly mocked, JiraSecurityIssue.
      */
