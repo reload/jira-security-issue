@@ -80,7 +80,7 @@ class JiraSecurityIssue
         $this->issueType = \getenv('JIRA_ISSUE_TYPE') ?: 'Bug';
         $this->restrictedCommentRole = \getenv('JIRA_RESTRICTED_COMMENT_ROLE') ?: 'Developers';
 
-        $watchers = \getenv('JIRA_WATCHERS');
+        $watchers = trim(\getenv('JIRA_WATCHERS'));
 
         if ($watchers) {
             $this->watchers = \explode(',', $watchers);
