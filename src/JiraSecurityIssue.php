@@ -43,7 +43,7 @@ class JiraSecurityIssue
     /**
      * Priority of issue to create.
      */
-    protected string $priority = 'Undecided';
+    protected ?string $priority = null;
 
     /**
      * Type of issue to create.
@@ -82,7 +82,7 @@ class JiraSecurityIssue
     public function __construct()
     {
         $this->project = \getenv('JIRA_PROJECT') ?: '';
-        $this->priority = \getenv('JIRA_PRIORITY') ?: 'Undecided';
+        $this->priority = \getenv('JIRA_PRIORITY') ?: null;
         $this->issueType = \getenv('JIRA_ISSUE_TYPE') ?: 'Bug';
         $this->restrictedCommentRole = \getenv('JIRA_RESTRICTED_COMMENT_ROLE') ?: 'Developers';
 
@@ -202,9 +202,12 @@ class JiraSecurityIssue
         $issueField = new IssueField();
         $issueField->setProjectKey($this->project)
             ->setSummary($this->title ?? '')
-            ->setPriorityNameAsString($this->priority)
             ->setIssueTypeAsString($this->issueType)
             ->setDescription($this->body);
+
+        if (\is_string($this->priority)) {
+            $issueField->setPriorityNameAsString($this->priority);
+        }
 
         foreach ($this->keyLabels as $label) {
             $issueField->addLabelAsString($label);

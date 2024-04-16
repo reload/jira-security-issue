@@ -25,6 +25,7 @@ CI systems.
 - `JIRA_USER`: The ID of the Jira user which is associated with the 'JiraApiToken' secret, eg 'someuser@reload.dk' (**REQUIRED**)
 - `JIRA_PROJECT`: The project key for the Jira project where issues should be created, eg `TEST` or `ABC`. (**REQUIRED** if not set in code)
 - `JIRA_ISSUE_TYPE`: Type of issue to create, e.g. `Security`. Defaults to `Bug`. (*Optional*)
+- `JIRA_PRIORITY`: The priority of issue to create, e.g. `Critical`. (*Optional*)
 - `JIRA_WATCHERS`: Jira users to add as watchers to tickets. Separate
   multiple watchers with comma (no spaces). (*Optional*)
 - `JIRA_RESTRICTED_COMMENT_ROLE`: A comment with restricted visibility
