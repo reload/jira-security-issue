@@ -3,7 +3,7 @@
     "description": "Create Jira issues if it doesn't exist",
     "license": "MIT",
     "require": {
-        "php": ">=8.3.0 <8.5",
+        "php": ">=8.4.0 <8.5",
         "lesstif/php-jira-rest-client": "^5.11",
         "webignition/symfony-console-typed-input": "^0.6"
     },
