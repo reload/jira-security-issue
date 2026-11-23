@@ -12,29 +12,10 @@ use JiraRestApi\Issue\IssueService;
 use JiraRestApi\User\User;
 use JiraRestApi\User\UserService;
 use PHPUnit\Framework\TestCase;
-use Prophecy\Argument;
-use Prophecy\PhpUnit\ProphecyTrait;
-use Prophecy\Prophecy\ObjectProphecy;
 use RuntimeException;
 
 final class JiraSecurityIssueTest extends TestCase
 {
-    use ProphecyTrait;
-
-    /**
-     * Mocked issue service.
-     *
-     * @var \Prophecy\Prophecy\ObjectProphecy<\JiraRestApi\Issue\IssueService>
-     */
-    protected ObjectProphecy $issueService;
-
-    /**
-     * Mocked user service.
-     *
-     * @var \Prophecy\Prophecy\ObjectProphecy<\JiraRestApi\User\UserService>
-     */
-    protected ObjectProphecy $userService;
-
     public function setUp(): void
     {
         \putenv('JIRA_HOST=https://localhost');
@@ -43,33 +24,27 @@ final class JiraSecurityIssueTest extends TestCase
         \putenv('JIRA_PROJECT=ABC');
         \putenv('JIRA_ISSUE_TYPE=Mytype');
         \putenv('JIRA_WATCHERS=');
-
-        $this->issueService = $this->prophesize(IssueService::class);
-        $this->userService = $this->prophesize(UserService::class);
     }
 
     public function testCreatingIssueBasic(): void
     {
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService);
 
-        // We're passing this var as a reference to the closure, so it can
-        // pass back the object it received, so we can test it.
         $issueField = null;
-        $this->issueService
-            ->create(Argument::any())
+        $issueService
+            ->expects($this->once())
+            ->method('create')
             // phpcs:ignore SlevomatCodingStandard.PHP.DisallowReference.DisallowedInheritingVariableByReference
-            ->will(static function ($args) use (&$issueField) {
-                \assert(\is_array($args));
-                $issueField = $args[0];
+            ->willReturnCallback(static function (IssueField $field) use (&$issueField): Issue {
+                $issueField = $field;
 
-                $issue = new Issue();
-                $issue->key = 'ABC-12';
-
-                return $issue;
+                return self::newJiraIssue('ABC-12');
             });
 
-        $this->issueService
-            ->addComment(Argument::any(), Argument::any())
+        $issueService
+            ->expects($this->once())
+            ->method('addComment')
             ->willReturn(new Comment());
 
         $issue
@@ -86,11 +61,12 @@ final class JiraSecurityIssueTest extends TestCase
 
     public function testMissingField(): void
     {
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService);
 
-        $this->issueService
-            ->create()
-            ->shouldNotBeCalled();
+        $issueService
+            ->expects($this->never())
+            ->method('create');
 
         $this->expectException(RuntimeException::class);
 
@@ -101,31 +77,33 @@ final class JiraSecurityIssueTest extends TestCase
 
     public function testCreatingIssueWithKeyLabel(): void
     {
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
 
-        $this->issueService
-            ->create(Argument::any())
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-13';
+        $notFound = new IssueSearchResult();
+        $notFound->issues = [];
 
-                return $issue;
-            });
+        $found = new IssueSearchResult();
+        $found->issues = [self::newJiraIssue('ABC-14')];
 
-        $this->issueService
-            ->addComment(Argument::any(), Argument::any())
+        // The first search finds nothing, so the issue is created. The
+        // second search finds an existing issue, so nothing is created.
+        $issueService
+            ->expects($this->exactly(2))
+            ->method('search')
+            ->with("PROJECT = 'ABC' AND labels IN ('banana') ORDER BY created DESC")
+            ->willReturnOnConsecutiveCalls($notFound, $found);
+
+        $issueService
+            ->expects($this->once())
+            ->method('create')
+            ->willReturn(self::newJiraIssue('ABC-13'));
+
+        $issueService
+            ->expects($this->once())
+            ->method('addComment')
             ->willReturn(new Comment());
 
-        $this->issueService
-            ->search(Argument::any())
-            ->will(static function () {
-                $searchResult = new IssueSearchResult();
-                $searchResult->issues = [];
-
-                return $searchResult;
-            });
-
-        $issueId = $issue
+        $issueId = $this->newIssue($issueService)
             ->setTitle('The title')
             ->setBody('Lala')
             ->setKeyLabel('banana')
@@ -133,97 +111,66 @@ final class JiraSecurityIssueTest extends TestCase
 
         $this->assertEquals('ABC-13', $issueId);
 
-        $this->issueService
-            ->search("PROJECT = 'ABC' AND labels IN ('banana') ORDER BY created DESC")
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-14';
-
-                $searchResult = new IssueSearchResult();
-                $searchResult->issues = [$issue];
-
-                return $searchResult;
-            });
-
-        $issue = $this->newIssue();
-
-        $issueId = $issue
+        $issueId = $this->newIssue($issueService)
             ->setTitle('The title')
             ->setBody('Lala')
             ->setKeyLabel('banana')
             ->ensure();
 
         $this->assertEquals('ABC-14', $issueId);
-
-        $this->issueService->create(Argument::any())->shouldBeCalledTimes(1);
     }
 
     public function testAddingWatchers(): void
     {
         \putenv('JIRA_WATCHERS=user1@example.com,user2@example.com');
 
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService, $this->stubUserService([
+            'user1@example.com' => ['accountId' => 'abcd', 'displayName' => 'efgh'],
+            'user2@example.com' => ['accountId' => '1234', 'displayName' => '5678'],
+        ]));
 
-        $this->issueService
-            ->create(Argument::any())
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-15';
+        $issueService
+            ->method('create')
+            ->willReturn(self::newJiraIssue('ABC-15'));
 
-                return $issue;
-            });
-
-        $this->issueService
-            ->addComment(Argument::any(), Argument::any())
+        $issueService
+            ->method('addComment')
             ->willReturn(new Comment());
 
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'user1@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'user2@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
+        $watchers = [];
+        $issueService
+            ->expects($this->exactly(2))
+            ->method('addWatcher')
+            // phpcs:ignore SlevomatCodingStandard.PHP.DisallowReference.DisallowedInheritingVariableByReference
+            ->willReturnCallback(static function (string $issueKey, string $accountId) use (&$watchers): bool {
+                $watchers[] = [$issueKey, $accountId];
 
-        $this->issueService
-            ->addWatcher(Argument::any(), Argument::any())
-            ->willReturn(true);
-
-        $this->issueService
-            ->addWatcher('ABC-15', 'abcd')
-            ->shouldBeCalled();
-        $this->issueService
-            ->addWatcher('ABC-15', '1234')
-            ->shouldBeCalled();
+                return true;
+            });
 
         $issue
             ->setTitle('The title')
             ->setBody('Lala')
             ->ensure();
+
+        $this->assertSame([['ABC-15', 'abcd'], ['ABC-15', '1234']], $watchers);
     }
 
     public function testAddingCommentWithOutWatchers(): void
     {
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService);
 
-        $this->issueService
-            ->create(Argument::any())
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-16';
+        $issueService
+            ->method('create')
+            ->willReturn(self::newJiraIssue('ABC-16'));
 
-                return $issue;
-            });
-        $this->issueService
-            ->addComment('ABC-16', $issue->createComment(JiraSecurityIssue::NO_WATCHERS_TEXT))
-            ->shouldBeCalled();
+        $issueService
+            ->expects($this->once())
+            ->method('addComment')
+            ->with('ABC-16', $issue->createComment(JiraSecurityIssue::NO_WATCHERS_TEXT))
+            ->willReturn(new Comment());
 
         $issue
             ->setTitle('The title')
@@ -235,39 +182,25 @@ final class JiraSecurityIssueTest extends TestCase
     {
         \putenv('JIRA_WATCHERS=user1@example.com,user2@example.com');
 
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService, $this->stubUserService([
+            'user1@example.com' => ['accountId' => 'abcd', 'displayName' => 'efgh'],
+            'user2@example.com' => ['accountId' => '1234', 'displayName' => '5678'],
+        ]));
 
-        $this->issueService
-            ->create(Argument::any())
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-17';
+        $issueService
+            ->method('create')
+            ->willReturn(self::newJiraIssue('ABC-17'));
 
-                return $issue;
-            });
-
-        $this->issueService
-            ->addWatcher(Argument::any(), Argument::any())
+        $issueService
+            ->method('addWatcher')
             ->willReturn(true);
 
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'user1@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'user2@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
-
-        $this->issueService
-            ->addComment('ABC-17', $issue->createComment("This issue is being followed by efgh and 5678"))
-            ->shouldBeCalled();
+        $issueService
+            ->expects($this->once())
+            ->method('addComment')
+            ->with('ABC-17', $issue->createComment("This issue is being followed by efgh and 5678"))
+            ->willReturn(new Comment());
 
         $issue
             ->setTitle('The title')
@@ -277,7 +210,7 @@ final class JiraSecurityIssueTest extends TestCase
 
     public function testMultipleFormatting(): void
     {
-        $issue = $this->newIssue();
+        $issue = $this->newIssue($this->createStub(IssueService::class));
 
         $this->assertEquals('one', $issue->formatMultiple(['one']));
         $this->assertEquals('one and two', $issue->formatMultiple(['one', 'two']));
@@ -287,7 +220,7 @@ final class JiraSecurityIssueTest extends TestCase
 
     public function testUsersFormatting(): void
     {
-        $issue = $this->newIssue();
+        $issue = $this->newIssue($this->createStub(IssueService::class));
 
         $this->assertEquals(
             'one and two',
@@ -297,7 +230,7 @@ final class JiraSecurityIssueTest extends TestCase
 
     public function testQuotedFormatting(): void
     {
-        $issue = $this->newIssue();
+        $issue = $this->newIssue($this->createStub(IssueService::class));
 
         $this->assertEquals('"one" and "two"', $issue->formatQuoted(['one', 'two']));
     }
@@ -306,52 +239,24 @@ final class JiraSecurityIssueTest extends TestCase
     {
         \putenv('JIRA_WATCHERS=user1@example.com,notfound@example.com,user2@example.com,notfoundeither@example.com');
 
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService, $this->stubUserService([
+            'user1@example.com' => ['accountId' => 'abcd', 'displayName' => 'efgh'],
+            'user2@example.com' => ['accountId' => '1234', 'displayName' => '5678'],
+        ]));
 
-        $this->issueService
-            ->create(Argument::any())
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-17';
+        $issueService
+            ->method('create')
+            ->willReturn(self::newJiraIssue('ABC-17'));
 
-                return $issue;
-            });
-
-        $this->issueService
-            ->addWatcher(Argument::any(), Argument::any())
+        $issueService
+            ->method('addWatcher')
             ->willReturn(true);
 
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'user1@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'user2@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => '1234', 'displayName' => '5678'])]);
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'notfound@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([]);
-        $this->userService
-            ->findAssignableUsers([
-                'query' => 'notfoundeither@example.com',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([]);
-
-        $this->issueService
-            ->addComment(
+        $issueService
+            ->expects($this->once())
+            ->method('addComment')
+            ->with(
                 'ABC-17',
                 $issue->createComment(
                     "This issue is being followed by efgh and 5678\n\n" .
@@ -359,7 +264,7 @@ final class JiraSecurityIssueTest extends TestCase
                     " please check the users listed in JIRA_WATCHERS.",
                 ),
             )
-            ->shouldBeCalled();
+            ->willReturn(new Comment());
 
         $issue
             ->setTitle('The title')
@@ -371,39 +276,29 @@ final class JiraSecurityIssueTest extends TestCase
     {
         \putenv('JIRA_WATCHERS= ');
 
-        $issue = $this->newIssue();
+        $issueService = $this->createMock(IssueService::class);
+        $issue = $this->newIssue($issueService, $this->stubUserService([
+            ' ' => ['accountId' => 'abcd', 'displayName' => 'efgh'],
+        ]));
 
-        $this->issueService
-            ->addComment(Argument::any(), Argument::any())
-            ->willReturn(new Comment());
+        $issueService
+            ->method('create')
+            ->willReturn(self::newJiraIssue('ABC-17'));
 
-        $this->issueService
-            ->create(Argument::any())
-            ->will(static function () {
-                $issue = new Issue();
-                $issue->key = 'ABC-17';
-
-                return $issue;
-            });
-
-        $this->userService
-            ->findAssignableUsers([
-                'query' => ' ',
-                'project' => 'ABC',
-                'maxResults' => 1,
-            ])
-            ->willReturn([new User(['accountId' => 'abcd', 'displayName' => 'efgh'])]);
-
-        $this->issueService
-            ->addComment(
+        $issueService
+            ->expects($this->once())
+            ->method('addComment')
+            ->with(
                 'ABC-17',
                 $issue->createComment(
                     "No watchers on this issue, remember to notify relevant people.",
                 ),
             )
-            ->shouldBeCalled();
+            ->willReturn(new Comment());
 
-        $this->issueService->addWatcher(Argument::any(), Argument::any())->shouldNotBeCalled();
+        $issueService
+            ->expects($this->never())
+            ->method('addWatcher');
 
         $issue
             ->setTitle('The title')
@@ -412,13 +307,49 @@ final class JiraSecurityIssueTest extends TestCase
     }
 
     /**
-     * Create a new, properly mocked, JiraSecurityIssue.
+     * Create a new JiraSecurityIssue that uses the given services.
      */
-    protected function newIssue(): JiraSecurityIssue
+    protected function newIssue(IssueService $issueService, ?UserService $userService = null): JiraSecurityIssue
     {
         $issue = new JiraSecurityIssue();
-        $issue->setIssueService($this->issueService->reveal());
-        $issue->setUserService($this->userService->reveal());
+        $issue->setIssueService($issueService);
+        $issue->setUserService($userService ?? $this->stubUserService());
+
+        return $issue;
+    }
+
+    /**
+     * Create a user service that finds the given users in the ABC project.
+     *
+     * @param array<string, array<string, string>> $users
+     *   User data keyed by the query that finds the user.
+     */
+    protected function stubUserService(array $users = []): UserService
+    {
+        $userService = $this->createStub(UserService::class);
+        $userService
+            ->method('findAssignableUsers')
+            ->willReturnCallback(static function (array $params) use ($users): array {
+                $query = $params['query'] ?? null;
+
+                if (
+                    !\is_string($query)
+                    || !isset($users[$query])
+                    || $params !== ['query' => $query, 'project' => 'ABC', 'maxResults' => 1]
+                ) {
+                    return [];
+                }
+
+                return [new User($users[$query])];
+            });
+
+        return $userService;
+    }
+
+    protected static function newJiraIssue(string $key): Issue
+    {
+        $issue = new Issue();
+        $issue->key = $key;
 
         return $issue;
     }
